@@ -1,6 +1,6 @@
 import socket
 import json
-from agent import iot
+from RL.agent import *
 import os
 
 HOST = '127.0.0.1'
@@ -84,10 +84,10 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300):
     client_socket.connect((HOST, PORT))
 
     ''' --- Agent setup --- '''
-    light1 = iot.IoTAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomLight1')
-    light2 = iot.IoTAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomLight2')
-    roller = iot.IoTAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomRoller')
-    heater = iot.IoTAgent(TEMPERATURE_N_STATE, N_ACTION, 'RoomHeater')
+    light1 = IoTAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomLight1')
+    light2 = IoTAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomLight2')
+    roller = IoTAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomRoller')
+    heater = IoTAgent(TEMPERATURE_N_STATE, N_ACTION, 'RoomHeater')
 
     ''' load or pretrain the model'''
     if load_flag == True:

@@ -7,6 +7,7 @@ import torch.optim as optim
 import torch.nn.utils as torch_utils
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+sys.path.append(os.path.dirname(__file__))
 from model import * 
 
 '''
