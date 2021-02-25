@@ -9,8 +9,8 @@ class Actor:
 class Actor(nn.Module):
     def __init__(self, n_state, n_action):
         super(Actor, self).__init__()
-        self.hidden1 = nn.Linear(n_state, 24)
-        self.out = nn.Linear(24, n_action)
+        self.hidden1 = nn.Linear(n_state, 8)
+        self.out = nn.Linear(8, n_action)
 
     def forward(self, x):
         x = torch.Tensor(x)
@@ -27,9 +27,9 @@ class Critic:
 class Critic(nn.Module):
     def __init__(self, n_state):
         super(Critic, self).__init__()
-        self.hidden1 = nn.Linear(n_state, 24)
-        self.hidden2 = nn.Linear(24, 24)
-        self.out = nn.Linear(24, 1)
+        self.hidden1 = nn.Linear(n_state, 16)
+        self.hidden2 = nn.Linear(16, 16)
+        self.out = nn.Linear(16, 1)
 
     def forward(self, x):
         x = torch.Tensor(x)

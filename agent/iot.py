@@ -15,10 +15,11 @@ class LightAgent:
     This agent learn athe task based on Actor-critic
 '''
 class IoTAgent:
-    def __init__(self, n_state, n_action):
+    def __init__(self, n_state, n_action, name):
         self.actor: Actor = Actor(n_state=n_state, n_action=n_action)
         self.critic: Critic = Critic(n_state=n_state)
 
+        self.name = name
         self.n_action = n_action
         self.discount_factor = 0.99
         self.learning_rate = 0.001
@@ -36,12 +37,12 @@ class IoTAgent:
         return action
 
     def save_model(self, dir_path):
-        torch.save(self.actor.state_dict(), dir_path+'actor.pt')
-        torch.save(self.critic.state_dict(), dir_path+'critic.pt')
+        torch.save(self.actor.state_dict(), dir_path+self.name+'_actor.pt')
+        torch.save(self.critic.state_dict(), dir_path+self.name+'_critic.pt')
 
     def load_model(self, dir_path):
-        self.actor.load_state_dict(torch.load(dir_path+'actor.pt'))
-        self.critic.load_state_dict(torch.load(dir_path+'critic.pt'))
+        self.actor.load_state_dict(torch.load(dir_path+self.name+'_actor.pt'))
+        self.critic.load_state_dict(torch.load(dir_path+self.name+'_critic.pt'))
 
     def set_eval(self):
         self.actor.eval()
@@ -55,8 +56,8 @@ class IoTAgent:
         target = reward + (1 - done) * self.discount_factor * next_value
         
         one_hot_action = torch.zeros(self.n_action)
-        one_hot_action[action] = policy[0][action]
-        action_prob = one_hot_action.reshape(2)
+        one_hot_action[action] = policy[action]
+        action_prob = one_hot_action.reshape(self.n_action)
         action_prob = torch.sum(action_prob)
         advantage = (target - value.item()).detach().reshape(1)
         # print(f'advantage: {advantage}, {advantage.shape}, {advantage.dtype}')

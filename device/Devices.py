@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import random
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__)))+'/utils')
 import clr
@@ -42,6 +43,10 @@ class Light:
         elif action == 2:
             self.off()
 
+    def random_choice(self):
+        self.actuate(random.choice([1, 2]))
+        return self.state()
+
     def state(self):
         '''
         state (Float) = 0.01 if fully closed, 10.0 if fully opened
@@ -75,6 +80,10 @@ class Roller:
                 self.down()
                 time.sleep(0.5)
         self.reset_output()
+
+    def random_choice(self):
+        self.actuate(random.choice([1, 2]))
+        return self.state()
 
     def reset_output(self):
         device1 = MemoryMap.Instance.GetBit(self.output_up, MemoryType.Output)
@@ -131,6 +140,12 @@ class Heater:
             self.power_up()
         elif action == 2:
             self.power_down()
+    
+    def random_choice(self):
+        device = MemoryMap.Instance.GetFloat(self.output, MemoryType.Output)
+        device.Value = random.uniform(0, 10)
+        MemoryMap.Instance.Update()
+        return self.state()
 
     def state(self):
         '''
@@ -156,13 +171,8 @@ class Thermostat:
         self.input_cur = -1
         self.input_set = -1
 
-    def set_temperature(self):
-        MemoryMap.Instance.GetFloat(self.input_set, MemoryType.Input).Value = 30
-        MemoryMap.Instance.Update()
 
     def state(self):
         MemoryMap.Instance.Update()
-        # return MemoryMap.Instance.GetFloat(self.input_cur, MemoryType.Input).Value, \
-        #     MemoryMap.Instance.GetFloat(self.input_set, MemoryType.Input).Value
         return MemoryMap.Instance.GetFloat(self.input_cur, MemoryType.Input).Value
     
