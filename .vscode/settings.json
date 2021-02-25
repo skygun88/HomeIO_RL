@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./device"
+    ],
+    "python.pythonPath": "C:\\Users\\cdsnlab\\anaconda3\\envs\\openai_test\\python.exe"
+}
