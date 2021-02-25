@@ -39,37 +39,33 @@ def main():
     envs = [brightness, temperature, out_temperature, out_brightness]
     all_devices = agents + envs
 
-    # while True:
-    states = list(map(lambda x: x.state(), all_devices))
-    states = list(map(lambda x: x.state(), all_devices)) # Doubly call because of bugs
-    names = list(map(lambda x: x.name, all_devices))
+    for _ in range(10):
+        states = list(map(lambda x: x.state(), all_devices))
+        states = list(map(lambda x: x.state(), all_devices)) # Doubly call because of bugs
+        names = list(map(lambda x: x.name, all_devices))
 
-    state_dict = dict(map(lambda x, y: (x, y), names, states))
-    state_dict_json = json.dumps(state_dict)
+        state_dict = dict(map(lambda x, y: (x, y), names, states))
+        state_dict_json = json.dumps(state_dict)
 
-    print('--- Current States --- ')
-    for key, val in state_dict.items():
-        print(f'{key}: {val}')
-    print('------------------------')
+        print('--- Current States --- ')
+        for key, val in state_dict.items():
+            print(f'{key}: {val}')
+        print('------------------------')
 
-    client_socket.sendall(state_dict_json.encode())
+        client_socket.sendall(state_dict_json.encode())
 
-    data = client_socket.recv(1024)
+        data = client_socket.recv(1024)
+        actions = json.loads(data.decode())
 
-    data = json.loads(data.decode())
+        print('--- Selected actions --- ')
+        for key, val in actions.items():
+            print(f'{key}: {val}')
+        print('------------------------')
 
-    print('--- Selected actions --- ')
-    for key, val in data.items():
-        print(f'{key}: {val}')
-    print('------------------------')
-
-    if data[names[0]] == 1:
-        light1.on()
-        light2.on()
-
-    else:
-        light1.off()
-        light2.off()
+        for agent in agents:
+            agent.actuate(actions[agent.name])
+        
+        time.sleep(1)
 
 
     # client_socket.sendall(data)

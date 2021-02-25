@@ -36,6 +36,12 @@ class Light:
         device.Value = min(device.Value - 0.5, 0.00)
         MemoryMap.Instance.Update()
 
+    def actuate(self, action):
+        if action == 1:
+            self.on()
+        elif action == 2:
+            self.off()
+
     def state(self):
         '''
         state (Float) = 0.01 if fully closed, 10.0 if fully opened
@@ -58,6 +64,17 @@ class Roller:
         device = MemoryMap.Instance.GetBit(self.output_down, MemoryType.Output)
         device.Value = True
         MemoryMap.Instance.Update()
+
+    def actuate(self, action):
+        if action == 1:
+            while self.state() < 10:
+                self.up()
+                time.sleep(0.5)
+        elif action == 2:
+            while self.state() > 0:
+                self.down()
+                time.sleep(0.5)
+        self.reset_output()
 
     def reset_output(self):
         device1 = MemoryMap.Instance.GetBit(self.output_up, MemoryType.Output)
@@ -108,6 +125,12 @@ class Heater:
         device = MemoryMap.Instance.GetFloat(self.output, MemoryType.Output)
         device.Value = max(device.Value - 0.5, 0.00)
         MemoryMap.Instance.Update()
+
+    def actuate(self, action):
+        if action == 1:
+            self.power_up()
+        elif action == 2:
+            self.power_down()
 
     def state(self):
         '''

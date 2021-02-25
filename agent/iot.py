@@ -14,7 +14,7 @@ class LightAgent:
     RL agent for learning Smart-home brightness adpatation
     This agent learn athe task based on Actor-critic
 '''
-class LightAgent:
+class IoTAgent:
     def __init__(self, n_state, n_action):
         self.actor: Actor = Actor(n_state=n_state, n_action=n_action)
         self.critic: Critic = Critic(n_state=n_state)
