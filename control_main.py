@@ -10,6 +10,7 @@ clr.AddReference('EngineIO')
 from EngineIO import *
 from device.Section_N import *
 from device.Outside import *
+from user_main import working_feedback
 
 HOST = ''
 PORT = 55665
@@ -68,16 +69,28 @@ def main():
         time.sleep(0.1) # Memory update delay
         next_state = list(map(lambda x: x.state(), all_devices))
         next_state_dict = dict(map(lambda x, y: (x, y), names, next_state))
-        next_statee_dict_json = json.dumps(next_state_dict)
+        next_state_dict_json = json.dumps(next_state_dict)
 
         print('Next States ------------')
         for key, val in next_state_dict.items():
             print(f'{key}: {val}')
         print('------------------------\n')
 
-        client_socket.sendall(next_statee_dict_json.encode())
+        client_socket.sendall(next_state_dict_json.encode())
         # time.sleep(0.5)
+    
 
+    states = list(map(lambda x: x.state(), all_devices))
+    action_cnt, final_state = working_feedback(states, all_devices)
+    print(f'User\'s action: {action_cnt}')
+
+    time.sleep(0.1)
+    final_state_dict = dict(map(lambda x, y: (x, y), names, final_state))
+    final_state_dict_json = json.dumps(final_state_dict)
+    for key, val in final_state_dict.items():
+        print(f'{key}: {val}')
+    client_socket.sendall(final_state_dict_json.encode())
+    
 
     client_socket.close()
     server_socket.close()

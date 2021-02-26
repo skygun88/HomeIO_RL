@@ -29,22 +29,36 @@ class Light:
 
     def analogue_up(self):
         device = MemoryMap.Instance.GetFloat(self.output, MemoryType.Output)
-        device.Value = min(device.Value + 0.5, 10.0)
+        # device.Value = min(device.Value + 0.5, 10.0)
+        device.Value = min(device.Value + 1.0, 10.0)
         MemoryMap.Instance.Update()
 
     def analogue_down(self):
         device = MemoryMap.Instance.GetFloat(self.output, MemoryType.Output)
-        device.Value = min(device.Value - 0.5, 0.00)
+        # device.Value = max(device.Value - 0.5, 0.01)
+        device.Value = max(device.Value - 1.0, 0.01)
         MemoryMap.Instance.Update()
+
+    # def actuate(self, action):
+    #     if action == 1:
+    #         self.on()
+    #     elif action == 2:
+    #         self.off()
 
     def actuate(self, action):
         if action == 1:
-            self.on()
+            self.analogue_up()
         elif action == 2:
-            self.off()
+            self.analogue_down()
+
+    # def random_choice(self):
+    #     self.actuate(random.choice([1, 2]))
+    #     return self.state()
 
     def random_choice(self):
-        self.actuate(random.choice([1, 2]))
+        device = MemoryMap.Instance.GetFloat(self.output, MemoryType.Output)
+        device.Value = random.uniform(0.01, 10)
+        MemoryMap.Instance.Update()
         return self.state()
 
     def state(self):

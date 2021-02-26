@@ -32,7 +32,6 @@ def pretraining(light1, light2, roller, heater, client_socket, max_iteration):
     for agent in agents:
         agent.learning_rate = 0.3
 
-    
     for i in range(max_iteration):
         print(f'Pretraining [{i+1}] ---------------')
         ''' --- State data recived --- '''
@@ -100,6 +99,11 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300):
         pretraining(light1, light2, roller, heater, client_socket, pretrain_iteration)
         print('Pretraining is finished --------------------- ')
 
+    light1_memory = []
+    light2_memory = []
+    roller_memory = []
+    heater_memory = []
+
     for _ in range(10):
         ''' --- State data received --- '''
         data = client_socket.recv(1024)
@@ -133,12 +137,28 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300):
         next_state = json.loads(data.decode())
         next_brightness_state, next_temperature_state = state_preprocessing(next_state)
 
+        ''' --- Stack the replay memory --- '''
+        light1_memory.append([brightness_state[:], actions[0], next_brightness_state[:]])
+        light2_memory.append([brightness_state[:], actions[1], next_brightness_state[:]])
+        roller_memory.append([brightness_state[:], actions[2], next_brightness_state[:]])
+        heater_memory.append([temperature_state[:], actions[3], next_temperature_state[:]])
+        if sum(actions) == 0:
+            break
+
+
     ''' Exit the Home I/O controller process '''
     client_socket.recv(1024)
     quit_flag = 'quit'
     client_socket.sendall(quit_flag.encode())
+
+    data = client_socket.recv(1024)
+    final_state = json.loads(data.decode())
+    final_brightness_state, final_temperature_state = state_preprocessing(final_state)
+
+    light1.train_model_from_memory(light1_memory, final_brightness_state)
+
     client_socket.close()
 
 
 if __name__ == '__main__':
-    main(load_flag=False, pretrain_flag=True, pretrain_iteration=300)
+    main(load_flag=False, pretrain_flag=False, pretrain_iteration=300)

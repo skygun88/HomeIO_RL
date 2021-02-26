@@ -10,6 +10,9 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 sys.path.append(os.path.dirname(__file__))
 from model import * 
 
+POSITIVE = 1
+NEGATIVE = -1
+
 '''
 class LightAgent:
     RL agent for learning Smart-home brightness adpatation
@@ -26,9 +29,9 @@ class IoTAgent:
         self.learning_rate = 0.001
 
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.learning_rate)
-        #torch_utils.clip_grad_norm_(self.actor.parameters(), 5.0)
+        torch_utils.clip_grad_norm_(self.actor.parameters(), 5.0)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.learning_rate)
-        #torch_utils.clip_grad_norm_(self.critic.parameters(), 5.0)
+        torch_utils.clip_grad_norm_(self.critic.parameters(), 5.0)
 
     def get_action(self, state):
         np_state = np.array(state).reshape(1, -1)
@@ -73,49 +76,57 @@ class IoTAgent:
         self.critic_optimizer.step()
         return loss.item()
 
-    def train_model_from_memory(self, memory, batch_size):
-        self.actor.train(), self.critic.train()
-        n_batch = math.ceil(len(memory)/batch_size)
-        for batch_idx in range(n_batch):
-            self.actor_optimizer.zero_grad(), self.critic_optimizer.zero_grad()
-            if batch_idx == n_batch-1:
-                curr_memory = memory[batch_idx*batch_size:]
-            else:
-                curr_memory = memory[batch_idx*batch_size:batch_idx*batch_size+batch_size]
-            ''' memory[n, 5] = [states, actions, rewards, next_states, masks]'''
-            states = np.array(tuple(map(lambda x: x[0], curr_memory)))
-            actions = np.array(tuple(map(lambda x: x[1], curr_memory)))
-            rewards = np.array(tuple(map(lambda x: x[2], curr_memory)))
-            next_states = np.array(tuple(map(lambda x: x[3], curr_memory)))
-            masks = np.array(tuple(map(lambda x: x[4], curr_memory)))
+    def train_model_from_memory(self, memory, final_state):
+        #self.actor.train(), self.critic.train()
+        self.actor_optimizer.zero_grad(), self.critic_optimizer.zero_grad()
 
-            torch_masks = torch.from_numpy(masks)
-            torch_rewards = torch.from_numpy(rewards)
+        ''' memory[n, 5] = [states, actions, rewards, next_states, masks]'''
+        states = np.array(tuple(map(lambda x: x[0], memory)))
+        actions = np.array(tuple(map(lambda x: x[1], memory)))
+        # rewards = np.array(tuple(map(lambda x: x[2], memory)))
+        next_states = np.array(tuple(map(lambda x: x[2], memory)))
+
+        print(f'memory with final ---------------------')
+        for i in range(len(memory)):
+            state_distance = sum(list(map(lambda x, y: (x-y)**2, states[i], final_state)))
+            next_state_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i], final_state)))
+            reward = POSITIVE if (state_distance > next_state_distance or next_state_distance <= 0.0001) else NEGATIVE
+            print(f'States: {states[i]}, distance: {state_distance}')
+            print(f'Actions: {actions[i]}')
+            print(f'Next_states: {next_states[i]}, distance: {next_state_distance}')
+            print(f'final_state: {final_state}')
+            print(f'reward: {reward}')
+            print(f'---------------------------------------')
 
 
-            policies = self.actor(states)
-            values = self.critic(states)
-            next_values = self.critic(next_states)
-            values = values.squeeze()
-            next_values = next_values.squeeze()
+        # torch_masks = torch.from_numpy(masks)
+        # torch_rewards = torch.from_numpy(rewards)
 
-            one_hot_actions = torch.zeros(len(actions), self.n_action)
 
-            for i in range(len(actions)):
-                one_hot_actions[i][actions[i]] = 1
-            #print(one_hot_actions)
-            one_hot_actions = policies * one_hot_actions 
-            #print(one_hot_actions)
-            action_prob = torch.sum(one_hot_actions, dim=1)
-            log_prob = torch.log(action_prob+1e-5)
-            target = torch_rewards +  torch_masks * self.discount_factor * next_values
-            advantage = (target - values).detach()
-            actor_loss = torch.sum(-log_prob*advantage)
-            critic_loss = torch.sum(0.5 * torch.square(target.detach() - values))
-            loss = 0.2 * actor_loss + critic_loss
-            loss.backward()
+        # policies = self.actor(states)
+        # values = self.critic(states)
+        # next_values = self.critic(next_states)
+        # values = values.squeeze()
+        # next_values = next_values.squeeze()
 
-            self.actor_optimizer.step()
-            self.critic_optimizer.step()
+        # one_hot_actions = torch.zeros(len(actions), self.n_action)
+
+        # for i in range(len(actions)):
+        #     one_hot_actions[i][actions[i]] = 1
+        # #print(one_hot_actions)
+        # one_hot_actions = policies * one_hot_actions 
+        # #print(one_hot_actions)
+        # action_prob = torch.sum(one_hot_actions, dim=1)
+        # log_prob = torch.log(action_prob+1e-5)
+        # target = torch_rewards +  torch_masks * self.discount_factor * next_values
+        # advantage = (target - values).detach()
+        # actor_loss = torch.sum(-log_prob*advantage)
+        # critic_loss = torch.sum(0.5 * torch.square(target.detach() - values))
+        # loss = 0.2 * actor_loss + critic_loss
+        # loss.backward()
+
+        # self.actor_optimizer.step()
+        # self.critic_optimizer.step()
+        # self.actor.eval(), self.critic.eval()
 
         return

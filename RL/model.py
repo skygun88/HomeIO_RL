@@ -15,9 +15,10 @@ class Actor(nn.Module):
     def forward(self, x):
         x = torch.Tensor(x)
         x = self.hidden1(x)
-        x = torch.tanh(x)
+        x = torch.sigmoid(x)
         x = self.out(x)
         out = F.softmax(x, dim=-1)
+        print(out)
         return out 
 
 '''
