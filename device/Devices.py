@@ -88,11 +88,11 @@ class Roller:
         if action == 1:
             while self.state() < 10:
                 self.up()
-                time.sleep(0.5)
+                time.sleep(0.1)
         elif action == 2:
             while self.state() > 0:
                 self.down()
-                time.sleep(0.5)
+                time.sleep(0.1)
         self.reset_output()
 
     def random_choice(self):

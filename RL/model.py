@@ -18,7 +18,7 @@ class Actor(nn.Module):
         x = torch.sigmoid(x)
         x = self.out(x)
         out = F.softmax(x, dim=-1)
-        print(out)
+        # print(out)
         return out 
 
 '''
