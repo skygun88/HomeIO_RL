@@ -104,21 +104,11 @@ def main():
         client_socket.sendall(next_state_dict_json.encode())
         # time.sleep(0.5)
     
-
-    # states = list(map(lambda x: x.state(), all_devices))
-    # action_cnt, final_state = working_feedback(states, all_devices)
-    # print(f'User\'s action: {action_cnt}')
-
-    # time.sleep(0.1)
-    # final_state_dict = dict(map(lambda x, y: (x, y), names, final_state))
-    # final_state_dict_json = json.dumps(final_state_dict)
-    # for key, val in final_state_dict.items():
-    #     print(f'{key}: {val}')
-    # client_socket.sendall(final_state_dict_json.encode())
     
     f.close()
     client_socket.close()
     server_socket.close()
 
 if __name__ == '__main__':
-    main()
+    for _ in range(2):
+        main()

@@ -195,4 +195,5 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
 
 
 if __name__ == '__main__':
-    main(load_flag=False, pretrain_flag=False, pretrain_iteration=300, save_flag=True)
+    for _ in range(2):
+        main(load_flag=False, pretrain_flag=False, pretrain_iteration=300, save_flag=False)

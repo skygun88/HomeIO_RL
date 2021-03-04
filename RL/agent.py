@@ -88,16 +88,20 @@ class IoTAgent:
 
         # print(f'memory with final ---------------------')
         for i in range(len(memory)):
-            state_distance = sum(list(map(lambda x, y: (x-y)**2, states[i], final_state)))
-            next_state_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i], final_state)))
+            #state_distance = sum(list(map(lambda x, y: (x-y)**2, states[i], final_state)))
+            #next_state_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i], final_state)))
+            ''' Test - Reward calculation without outside state '''
+            state_distance = sum(list(map(lambda x, y: (x-y)**2, states[i][:-1], final_state[:-1])))
+            next_state_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i][:-1], final_state[:-1])))
             reward = POSITIVE if (state_distance > next_state_distance or next_state_distance <= 0.0001) else NEGATIVE
             rewards.append(reward)
-            # print(f'States: {states[i]}, distance: {state_distance}')
-            # print(f'Actions: {actions[i]}')
-            # print(f'Next_states: {next_states[i]}, distance: {next_state_distance}')
-            # print(f'final_state: {final_state}')
-            # print(f'reward: {reward}')
-            # print(f'---------------------------------------')
+            if len(final_state) == 3:
+                print(f'States: {states[i]}, distance: {state_distance}')
+                print(f'Actions: {actions[i]}')
+                print(f'Next_states: {next_states[i]}, distance: {next_state_distance}')
+                print(f'final_state: {final_state}')
+                print(f'reward: {reward}')
+                print(f'---------------------------------------')
 
         print(f'avg reward = {sum(rewards)/len(rewards)}')
         rewards = np.array(rewards)
@@ -108,31 +112,31 @@ class IoTAgent:
         torch_masks = torch.from_numpy(masks)
         torch_rewards = torch.from_numpy(rewards)
 
+        for i in range(10):
+            policies = self.actor(states)
+            values = self.critic(states)
+            next_values = self.critic(next_states)
+            values = values.squeeze()
+            next_values = next_values.squeeze()
 
-        policies = self.actor(states)
-        values = self.critic(states)
-        next_values = self.critic(next_states)
-        values = values.squeeze()
-        next_values = next_values.squeeze()
+            one_hot_actions = torch.zeros(len(actions), self.n_action)
 
-        one_hot_actions = torch.zeros(len(actions), self.n_action)
+            for i in range(len(actions)):
+                one_hot_actions[i][actions[i]] = 1
+            #print(one_hot_actions)
+            one_hot_actions = policies * one_hot_actions 
+            #print(one_hot_actions)
+            action_prob = torch.sum(one_hot_actions, dim=1)
+            log_prob = torch.log(action_prob+1e-5)
+            target = torch_rewards +  torch_masks * self.discount_factor * next_values
+            advantage = (target - values).detach()
+            actor_loss = torch.sum(-log_prob*advantage)
+            critic_loss = torch.sum(0.5 * torch.square(target.detach() - values))
+            loss = 0.3 * actor_loss + critic_loss
+            loss.backward()
 
-        for i in range(len(actions)):
-            one_hot_actions[i][actions[i]] = 1
-        #print(one_hot_actions)
-        one_hot_actions = policies * one_hot_actions 
-        #print(one_hot_actions)
-        action_prob = torch.sum(one_hot_actions, dim=1)
-        log_prob = torch.log(action_prob+1e-5)
-        target = torch_rewards +  torch_masks * self.discount_factor * next_values
-        advantage = (target - values).detach()
-        actor_loss = torch.sum(-log_prob*advantage)
-        critic_loss = torch.sum(0.5 * torch.square(target.detach() - values))
-        loss = 0.3 * actor_loss + critic_loss
-        loss.backward()
-
-        self.actor_optimizer.step()
-        self.critic_optimizer.step()
+            self.actor_optimizer.step()
+            self.critic_optimizer.step()
         self.actor.eval(), self.critic.eval()
         # print(loss)
         return
