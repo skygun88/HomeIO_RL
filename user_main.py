@@ -20,7 +20,7 @@ def working_feedback(states, all_devices):
                     action_cnt[light_idxs[1]] += 1
         else: # Morning or Afternoon
             if all_devices[r_idx].state() < 10.0:
-                all_devices[r_idx].up()
+                all_devices[r_idx].actuate(1)
                 action_cnt[r_idx] += 1
             else:
                 light_idxs = [l1_idx, l2_idx]
@@ -36,39 +36,58 @@ def working_feedback(states, all_devices):
         states = list(map(lambda x: x.state(), all_devices))
 
     ''' --- Feedback on Temperature --- '''
-    while states[rt_idx] < 15 or states[rt_idx] > 20:
+    while states[rt_idx] < 15 or states[rt_idx] > 18:
         if states[rt_idx] < 15: # Cool state
-            if states[ot_idx] < states[rt_idx]: # if outside is lower than room
-                if all_devices[h_idx].state() > 8.0:
-                    break
-                else:
+            if states[ot_idx] < 5: # if outside is lower than room
+                if all_devices[h_idx].state() > 10.0:
+                    all_devices[h_idx].power_down()
+                    action_cnt[h_idx] += 1
+                elif all_devices[h_idx].state() < 10.0:
                     all_devices[h_idx].power_up()
                     action_cnt[h_idx] += 1
+                else:
+                    break
+
             else: # if outside is higher than room
-                if states[ot_idx] < 15:
-                    if all_devices[h_idx].state() > 7.0:
-                        break
-                    else:
+                if states[ot_idx] > 10: # outside > 15
+                    if all_devices[h_idx].state() > 8.0:
+                        all_devices[h_idx].power_down()
+                        action_cnt[h_idx] += 1
+                    elif all_devices[h_idx].state() < 8.0:
                         all_devices[h_idx].power_up()
                         action_cnt[h_idx] += 1
+                    else:
+                        break
+                else: # outside < 15
+                    if all_devices[h_idx].state() < 9.0:
+                        all_devices[h_idx].power_up()
+                        action_cnt[h_idx] += 1
+                    else:
+                        break
 
-        elif states[rt_idx] > 20: # Hot state
-            if states[ot_idx] < states[rt_idx]: # if outside is lower than room
-                if all_devices[h_idx].state() < 3.0:
-                    break
-                else:
-                    all_devices[h_idx].power_down()
-                    action_cnt[h_idx] += 1
-            else: # if outside is higher than room
-                if all_devices[h_idx].state() == 0.0:
-                    break
-                else:
-                    all_devices[h_idx].power_down()
-                    action_cnt[h_idx] += 1
-            
+        elif states[rt_idx] > 18: # Hot state
+            if all_devices[h_idx].state() == 0.0:
+                break
+            else:
+                all_devices[h_idx].power_down()
+                action_cnt[h_idx] += 1
+        else:
+            break
         time.sleep(0.1)
         states = list(map(lambda x: x.state(), all_devices))
+        
+    
+    while states[rt_idx] >= 15 and states[rt_idx] <= 18:
+        if all_devices[h_idx].state() > 2.0:
+            all_devices[h_idx].power_down()
+            action_cnt[h_idx] += 1
+        else:
+            break
+        time.sleep(0.1)
+        states = list(map(lambda x: x.state(), all_devices))
+    
 
+    #time.sleep(30)
     final_state = list(map(lambda x: x.state(), all_devices))
     return action_cnt, final_state
 

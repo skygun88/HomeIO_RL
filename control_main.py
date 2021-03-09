@@ -47,6 +47,7 @@ def main():
             agent.random_choice() # Random initilization
     time.sleep(0.1)
     states = list(map(lambda x: x.state(), all_devices))
+    print(f'initial state: {states}')
 
     while True:
         ''' --- Collect the state --- '''
@@ -68,22 +69,31 @@ def main():
             break
         if data.decode() == 'train':
             states = list(map(lambda x: x.state(), all_devices))
+            print(f'agents\' final state: {states}')
             action_cnt, final_state = working_feedback(states, all_devices)
             print(f'User\'s action: {action_cnt}')
 
             time.sleep(0.1)
             final_state_dict = dict(map(lambda x, y: (x, y), names, final_state))
             final_state_dict_json = json.dumps(final_state_dict)
-            for key, val in final_state_dict.items():
-                print(f'{key}: {val}')
+            # for key, val in final_state_dict.items():
+            #     if 'Temperature' in key or 'Heater' in key:
+            #         print(f'{key}: {val}')
+            print(f'users\' final state: {final_state}')
             print('------------------------')
             client_socket.sendall(final_state_dict_json.encode())
+            
+            client_socket.sendall(json.dumps({'user_cnt': action_cnt}).encode())
             f.write(','.join(list(map(lambda x: str(x), action_cnt))))
             f.write('\n')
 
             for agent in agents:
                 agent.random_choice() # Random initilization
+            
             time.sleep(0.1)
+            states = list(map(lambda x: x.state(), all_devices))
+            print(f'initial state: {states}')
+            #time.sleep(30)
             continue
 
         actions = json.loads(data.decode())
@@ -110,5 +120,5 @@ def main():
     server_socket.close()
 
 if __name__ == '__main__':
-    for _ in range(2):
+    for _ in range(5):
         main()

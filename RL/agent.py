@@ -25,8 +25,9 @@ class IoTAgent:
 
         self.name = name
         self.n_action = n_action
-        self.discount_factor = 0.25
-        self.learning_rate = 0.01
+        self.discount_factor = 0.8
+        self.learning_rate = 0.0005
+        self.user_cnt_queue = []
 
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.learning_rate)
         torch_utils.clip_grad_norm_(self.actor.parameters(), 5.0)
@@ -39,6 +40,10 @@ class IoTAgent:
         policy = policy.detach().numpy().squeeze(0)
         action = np.random.choice(self.n_action, 1, p=policy)[0]
         return action
+
+    def change_lr(self, new_lr):
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=new_lr)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=new_lr)
 
     def save_model(self, dir_path):
         torch.save(self.actor.state_dict(), dir_path+self.name+'_actor.pt')
@@ -76,10 +81,20 @@ class IoTAgent:
         self.critic_optimizer.step()
         return loss.item()
 
-    def train_model_from_memory(self, memory, final_state):
-        self.actor.train(), self.critic.train()
-        self.actor_optimizer.zero_grad(), self.critic_optimizer.zero_grad()
+    def train_model_from_memory(self, memory, final_state, user_cnt):
+        ''' Dynamic learning rate '''
+        self.user_cnt_queue.append(user_cnt)
+        if len(self.user_cnt_queue) > 5:
+            self.user_cnt_queue.pop(0)
 
+        #if sum(self.user_cnt_queue)/len(self.user_cnt_queue) > 3:
+        if user_cnt > 5:
+            self.change_lr(new_lr=0.01)
+        
+        self.actor_optimizer.zero_grad(), self.critic_optimizer.zero_grad()
+        self.actor.train(), self.critic.train()
+
+        #memory = list(reversed(memory)) # Reverse the memory
         ''' memory[n, 5] = [states, actions, rewards, next_states, masks]'''
         states = np.array(tuple(map(lambda x: x[0], memory)))
         actions = np.array(tuple(map(lambda x: x[1], memory)))
@@ -93,26 +108,27 @@ class IoTAgent:
             ''' Test - Reward calculation without outside state '''
             state_distance = sum(list(map(lambda x, y: (x-y)**2, states[i][:-1], final_state[:-1])))
             next_state_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i][:-1], final_state[:-1])))
-            reward = POSITIVE if (state_distance > next_state_distance or next_state_distance <= 0.0001) else NEGATIVE
+            cuur_next_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i][:-1], states[i][:-1])))
+            reward = POSITIVE if ((state_distance > next_state_distance and cuur_next_distance > 0.001) or next_state_distance <= 0.0001) else NEGATIVE
+            if i == len(memory)-1:
+                reward -= user_cnt
             rewards.append(reward)
-            if len(final_state) == 3:
-                print(f'States: {states[i]}, distance: {state_distance}')
-                print(f'Actions: {actions[i]}')
-                print(f'Next_states: {next_states[i]}, distance: {next_state_distance}')
-                print(f'final_state: {final_state}')
-                print(f'reward: {reward}')
-                print(f'---------------------------------------')
+            
+            # if len(final_state) == 3:
+            #     print(f'States: {states[i]}, distance: {state_distance}')
+            #     print(f'Actions: {actions[i]}')
+            #     print(f'Next_states: {next_states[i]}, distance: {next_state_distance}')
+            #     print(f'final_state: {final_state}')
+            #     print(f'user_cnt: {user_cnt}')
+            #     print(f'reward: {reward}')
+            #     print(f'---------------------------------------')
+            
 
         print(f'avg reward = {sum(rewards)/len(rewards)}')
         rewards = np.array(rewards)
-        masks = [1]*len(memory)
-        #masks[-1] = 0
-        masks = np.array(masks)
-
-        torch_masks = torch.from_numpy(masks)
         torch_rewards = torch.from_numpy(rewards)
 
-        for i in range(10):
+        for i in range(max(1, user_cnt)):
             policies = self.actor(states)
             values = self.critic(states)
             next_values = self.critic(next_states)
@@ -123,20 +139,21 @@ class IoTAgent:
 
             for i in range(len(actions)):
                 one_hot_actions[i][actions[i]] = 1
-            #print(one_hot_actions)
             one_hot_actions = policies * one_hot_actions 
-            #print(one_hot_actions)
             action_prob = torch.sum(one_hot_actions, dim=1)
             log_prob = torch.log(action_prob+1e-5)
-            target = torch_rewards +  torch_masks * self.discount_factor * next_values
+            target = torch_rewards +  self.discount_factor * next_values
             advantage = (target - values).detach()
             actor_loss = torch.sum(-log_prob*advantage)
             critic_loss = torch.sum(0.5 * torch.square(target.detach() - values))
             loss = 0.3 * actor_loss + critic_loss
             loss.backward()
-
+            
+            
             self.actor_optimizer.step()
             self.critic_optimizer.step()
         self.actor.eval(), self.critic.eval()
+
+        self.change_lr(self.learning_rate) # Return original lr
         # print(loss)
         return

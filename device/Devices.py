@@ -30,7 +30,7 @@ class Light:
     def analogue_up(self):
         device = MemoryMap.Instance.GetFloat(self.output, MemoryType.Output)
         # device.Value = min(device.Value + 0.5, 10.0)
-        device.Value = min(device.Value + 1.0, 10.0)
+        device.Value = min(round(device.Value + 1.0, 1), 10.0) # Handle to 0.01
         MemoryMap.Instance.Update()
 
     def analogue_down(self):
@@ -57,7 +57,9 @@ class Light:
 
     def random_choice(self):
         device = MemoryMap.Instance.GetFloat(self.output, MemoryType.Output)
-        device.Value = random.uniform(0.01, 10)
+        value_list = [round(1.0*i, 2) for i in range(11)]
+        value_list[0] = 0.01
+        device.Value = random.choice(value_list)
         MemoryMap.Instance.Update()
         return self.state()
 
@@ -157,7 +159,8 @@ class Heater:
     
     def random_choice(self):
         device = MemoryMap.Instance.GetFloat(self.output, MemoryType.Output)
-        device.Value = random.uniform(0, 10)
+        value_list = [round(0.5*i, 2) for i in range(21)]
+        device.Value = random.choice(value_list)
         MemoryMap.Instance.Update()
         return self.state()
 
