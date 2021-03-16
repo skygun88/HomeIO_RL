@@ -77,29 +77,29 @@ def main():
     #     print(f'Curr_tem: {thermostat.state()}')
     #     print('-----------------------------')
     # roller.reset_output()
-    thermostat.state(), outside_tem.state()
-    time.sleep(0.1)
-    heater.power_max()
-    time.sleep(12)
-    f = open('temperature_log.csv', 'w')
-    for i in range(240):
-        f.write(f'{heater.state()}, {thermostat.state()}, {outside_tem.state()}')
-        f.write('\n')
-        time.sleep(0.1)
+    # thermostat.state(), outside_tem.state()
+    # time.sleep(0.1)
+    # heater.power_max()
+    # time.sleep(12)
+    # f = open('temperature_log.csv', 'w')
+    # for i in range(240):
+    #     f.write(f'{heater.state()}, {thermostat.state()}, {outside_tem.state()}')
+    #     f.write('\n')
+    #     time.sleep(0.1)
     
 
-    while heater.state() > 0:
-        heater.power_down()
-        time.sleep(12)
-        for i in range(240):
-            f.write(f'{heater.state()}, {thermostat.state()}, {outside_tem.state()}')
-            f.write('\n')
-            time.sleep(0.1)
+    # while heater.state() > 0:
+    #     heater.power_down()
+    #     time.sleep(12)
+    #     for i in range(240):
+    #         f.write(f'{heater.state()}, {thermostat.state()}, {outside_tem.state()}')
+    #         f.write('\n')
+            # time.sleep(0.1)
 
-    f.close()
+    # f.close()
 
-    #heater.power_min()
-    #heater.off()
+    heater.power_min()
+    heater.off()
 
     # for i in range(30):
     #     print(f'brightness: {brightness.state()}')

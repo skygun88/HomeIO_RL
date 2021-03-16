@@ -36,7 +36,7 @@ def working_feedback(states, all_devices):
         states = list(map(lambda x: x.state(), all_devices))
 
     ''' --- Feedback on Temperature --- '''
-    while states[rt_idx] < 15 or states[rt_idx] > 18:
+    while states[rt_idx] < 15 or states[rt_idx] > 17:
         if states[rt_idx] < 15: # Cool state
             if states[ot_idx] < 5: # if outside is lower than room
                 if all_devices[h_idx].state() > 10.0:
@@ -50,22 +50,22 @@ def working_feedback(states, all_devices):
 
             else: # if outside is higher than room
                 if states[ot_idx] > 10: # outside > 15
-                    if all_devices[h_idx].state() > 8.0:
+                    if all_devices[h_idx].state() > 7.0:
                         all_devices[h_idx].power_down()
                         action_cnt[h_idx] += 1
-                    elif all_devices[h_idx].state() < 8.0:
+                    elif all_devices[h_idx].state() < 7.0:
                         all_devices[h_idx].power_up()
                         action_cnt[h_idx] += 1
                     else:
                         break
                 else: # outside < 15
-                    if all_devices[h_idx].state() < 9.0:
+                    if all_devices[h_idx].state() < 8.0:
                         all_devices[h_idx].power_up()
                         action_cnt[h_idx] += 1
                     else:
                         break
 
-        elif states[rt_idx] > 18: # Hot state
+        elif states[rt_idx] > 17: # Hot state
             if all_devices[h_idx].state() == 0.0:
                 break
             else:
@@ -77,7 +77,7 @@ def working_feedback(states, all_devices):
         states = list(map(lambda x: x.state(), all_devices))
         
     
-    while states[rt_idx] >= 15 and states[rt_idx] <= 18:
+    while states[rt_idx] >= 15 and states[rt_idx] <= 17:
         if all_devices[h_idx].state() > 2.0:
             all_devices[h_idx].power_down()
             action_cnt[h_idx] += 1

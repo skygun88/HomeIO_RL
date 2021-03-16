@@ -16,7 +16,7 @@ from user_main import working_feedback
 HOST = ''
 PORT = 55665
 
-def main():
+def main(sl_flag=False):
     ''' --- Socket setup --- '''
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -42,12 +42,18 @@ def main():
 
     current_time = str(datetime.now()).replace(':', '_').split('.')[0]
     f = open('user_log_'+current_time+'.csv', 'w')
+    if sl_flag:
+        sf = open('state_log_'+current_time+'.txt', 'w')
 
     for agent in agents:
             agent.random_choice() # Random initilization
     time.sleep(0.1)
     states = list(map(lambda x: x.state(), all_devices))
+    time.sleep(1)
+    states = list(map(lambda x: x.state(), all_devices))
     print(f'initial state: {states}')
+    if sl_flag:
+        sf.write(f'initial state: {states}\n')
 
     while True:
         ''' --- Collect the state --- '''
@@ -57,10 +63,6 @@ def main():
         state_dict = dict(map(lambda x, y: (x, y), names, states))
         state_dict_json = json.dumps(state_dict)
 
-        #print('Current States ---------')
-        #for key, val in state_dict.items():
-        #    print(f'{key}: {val}')
-
         client_socket.sendall(state_dict_json.encode())
 
         ''' --- Receive action data and execute actions --- '''
@@ -69,20 +71,23 @@ def main():
             break
         if data.decode() == 'train':
             states = list(map(lambda x: x.state(), all_devices))
-            print(f'agents\' final state: {states}')
             action_cnt, final_state = working_feedback(states, all_devices)
-            print(f'User\'s action: {action_cnt}')
-
             time.sleep(0.1)
             final_state_dict = dict(map(lambda x, y: (x, y), names, final_state))
             final_state_dict_json = json.dumps(final_state_dict)
-            # for key, val in final_state_dict.items():
-            #     if 'Temperature' in key or 'Heater' in key:
-            #         print(f'{key}: {val}')
+
+            print(f'agents\' final state: {states}')
+            print(f'User\'s action: {action_cnt}')
             print(f'users\' final state: {final_state}')
             print('------------------------')
-            client_socket.sendall(final_state_dict_json.encode())
+
+            if sl_flag:
+                sf.write(f'agents\' final state: {states}\n')
+                sf.write(f'User\'s action: {action_cnt}\n')
+                sf.write(f'users\' final state: {final_state}\n')
+                sf.write('------------------------\n')            
             
+            client_socket.sendall(final_state_dict_json.encode())
             client_socket.sendall(json.dumps({'user_cnt': action_cnt}).encode())
             f.write(','.join(list(map(lambda x: str(x), action_cnt))))
             f.write('\n')
@@ -91,9 +96,11 @@ def main():
                 agent.random_choice() # Random initilization
             
             time.sleep(0.1)
+            #time.sleep(30)
             states = list(map(lambda x: x.state(), all_devices))
             print(f'initial state: {states}')
-            #time.sleep(30)
+            if sl_flag:
+                sf.write(f'initial state: {states}\n')
             continue
 
         actions = json.loads(data.decode())
@@ -106,19 +113,16 @@ def main():
         next_state_dict = dict(map(lambda x, y: (x, y), names, next_state))
         next_state_dict_json = json.dumps(next_state_dict)
 
-        #print('Next States ------------')
-        #for key, val in next_state_dict.items():
-        #    print(f'{key}: {val}')
-        #print('------------------------\n')
-
         client_socket.sendall(next_state_dict_json.encode())
         # time.sleep(0.5)
     
     
     f.close()
+    if sl_flag:
+        sf.close()
     client_socket.close()
     server_socket.close()
 
 if __name__ == '__main__':
-    for _ in range(5):
-        main()
+    for _ in range(3):
+        main(sl_flag=True)

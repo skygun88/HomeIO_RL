@@ -1,7 +1,6 @@
 import sys
 import os 
 import numpy as np
-import math
 import torch
 import torch.optim as optim
 import torch.nn.utils as torch_utils
@@ -28,10 +27,13 @@ class IoTAgent:
         self.discount_factor = 0.8
         self.learning_rate = 0.0005
         self.user_cnt_queue = []
+        self.memory = []
 
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.learning_rate)
+        # self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.learning_rate)
+        # self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.learning_rate)
+        self.actor_optimizer = optim.RMSprop(self.actor.parameters(), lr=self.learning_rate, momentum=0.2)
+        self.critic_optimizer = optim.RMSprop(self.critic.parameters(), lr=self.learning_rate, momentum=0.2)
         torch_utils.clip_grad_norm_(self.actor.parameters(), 5.0)
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.learning_rate)
         torch_utils.clip_grad_norm_(self.critic.parameters(), 5.0)
 
     def get_action(self, state):
@@ -42,8 +44,10 @@ class IoTAgent:
         return action
 
     def change_lr(self, new_lr):
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=new_lr)
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=new_lr)
+        for g in self.actor_optimizer.param_groups:
+            g['lr'] = new_lr
+        for g in self.critic_optimizer.param_groups:
+            g['lr'] = new_lr
 
     def save_model(self, dir_path):
         torch.save(self.actor.state_dict(), dir_path+self.name+'_actor.pt')
@@ -91,10 +95,9 @@ class IoTAgent:
         if user_cnt > 5:
             self.change_lr(new_lr=0.01)
         
-        self.actor_optimizer.zero_grad(), self.critic_optimizer.zero_grad()
+        #self.actor_optimizer.zero_grad(), self.critic_optimizer.zero_grad()
         self.actor.train(), self.critic.train()
 
-        #memory = list(reversed(memory)) # Reverse the memory
         ''' memory[n, 5] = [states, actions, rewards, next_states, masks]'''
         states = np.array(tuple(map(lambda x: x[0], memory)))
         actions = np.array(tuple(map(lambda x: x[1], memory)))
@@ -103,8 +106,6 @@ class IoTAgent:
 
         # print(f'memory with final ---------------------')
         for i in range(len(memory)):
-            #state_distance = sum(list(map(lambda x, y: (x-y)**2, states[i], final_state)))
-            #next_state_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i], final_state)))
             ''' Test - Reward calculation without outside state '''
             state_distance = sum(list(map(lambda x, y: (x-y)**2, states[i][:-1], final_state[:-1])))
             next_state_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i][:-1], final_state[:-1])))
@@ -129,19 +130,24 @@ class IoTAgent:
         torch_rewards = torch.from_numpy(rewards)
 
         for i in range(max(1, user_cnt)):
+            self.actor_optimizer.zero_grad(), self.critic_optimizer.zero_grad()
+            
+            ''' New policies and values from NN '''
             policies = self.actor(states)
             values = self.critic(states)
             next_values = self.critic(next_states)
             values = values.squeeze()
             next_values = next_values.squeeze()
 
+            ''' Calculation of Log Prob'''
             one_hot_actions = torch.zeros(len(actions), self.n_action)
-
             for i in range(len(actions)):
                 one_hot_actions[i][actions[i]] = 1
             one_hot_actions = policies * one_hot_actions 
             action_prob = torch.sum(one_hot_actions, dim=1)
             log_prob = torch.log(action_prob+1e-5)
+            
+            ''' Calculate Loss '''
             target = torch_rewards +  self.discount_factor * next_values
             advantage = (target - values).detach()
             actor_loss = torch.sum(-log_prob*advantage)
@@ -149,7 +155,7 @@ class IoTAgent:
             loss = 0.3 * actor_loss + critic_loss
             loss.backward()
             
-            
+            ''' Update NN '''
             self.actor_optimizer.step()
             self.critic_optimizer.step()
         self.actor.eval(), self.critic.eval()

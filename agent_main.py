@@ -30,8 +30,6 @@ def state_preprocessing(states):
 def pretraining(light1, light2, roller, heater, client_socket, max_iteration):
     ''' --- initialization --- '''
     agents = [light1, light2, roller, heater]
-    for agent in agents:
-        agent.learning_rate = 0.3
 
     for i in range(max_iteration):
         print(f'Pretraining [{i+1}] ---------------')
@@ -74,11 +72,10 @@ def pretraining(light1, light2, roller, heater, client_socket, max_iteration):
         heater.train_model(next_temperature_state, actions[3], rewards[3], next_temperature_state, False)
 
     for agent in agents:
-        agent.learning_rate = 0.01
         agent.save_model(WEIGHT_PATH)
 
 
-def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=True):
+def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=True, maximum_episode=100):
     ''' --- Socket setup --- '''
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((HOST, PORT))
@@ -105,15 +102,15 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
     current_time = str(datetime.now()).replace(':', '_').split('.')[0]
     f = open('agent_log_'+current_time+'.csv', 'w')
 
-    for i in range(100):
+    for i in range(maximum_episode):
         print(f'[{i+1}] Episode start')
-        light1_memory = []
-        light2_memory = []
-        roller_memory = []
-        heater_memory = []
+        light1.memory = []
+        light2.memory = []
+        roller.memory = []
+        heater.memory = []
         actions = [-1]*4
         actions_cnt = [0]*4
-        while sum(actions) != 0:
+        while True:
             ''' --- State data received --- '''
             data = client_socket.recv(1024)
             states = json.loads(data.decode())
@@ -126,8 +123,6 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
             ''' --- Ontology based state distirbution --- '''
             brightness_state, temperature_state = state_preprocessing(states)
 
-            #print(f'brigthness_state: {brightness_state}')
-            #print(f'temperature_state: {temperature_state}')
 
             ''' --- Select action and send action data --- '''
             actions[0] = int(light1.get_action(brightness_state))
@@ -150,12 +145,21 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
             
             for name in action_dict.keys():
                 if states[name] == next_state[name]:
+                    agent = list(filter(lambda x: x.name == name, agents))[0]
+                    if action_dict[name] != 0:
+                        if name != 'RoomHeater':
+                            agent.memory.append([brightness_state[:], action_dict[name], next_brightness_state[:]])
+                        else:
+                            agent.memory.append([temperature_state[:], action_dict[name], next_temperature_state[:]])
                     action_dict[name] = 0
 
-            light1_memory.append([brightness_state[:], action_dict['RoomLight1'], next_brightness_state[:]])
-            light2_memory.append([brightness_state[:], action_dict['RoomLight2'], next_brightness_state[:]])
-            roller_memory.append([brightness_state[:], action_dict['RoomRoller'], next_brightness_state[:]])
-            heater_memory.append([temperature_state[:], action_dict['RoomHeater'], next_temperature_state[:]])
+            # print(f'actions: {actions}')
+            # print(f'action_dict: {action_dict}')
+            # print(f'action_dict_val: {list(action_dict.values())}')
+            light1.memory.append([brightness_state[:], action_dict['RoomLight1'], next_brightness_state[:]])
+            light2.memory.append([brightness_state[:], action_dict['RoomLight2'], next_brightness_state[:]])
+            roller.memory.append([brightness_state[:], action_dict['RoomRoller'], next_brightness_state[:]])
+            heater.memory.append([temperature_state[:], action_dict['RoomHeater'], next_temperature_state[:]])
             
             # state_distance = sum(list(map(lambda x, y: (x-y)**2, list(states.values())[:4], list(next_state.values())[:4])))
             # if state_distance < 0.0005:
@@ -180,10 +184,10 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
 
         final_brightness_state, final_temperature_state = state_preprocessing(final_state)
 
-        light1.train_model_from_memory(light1_memory, final_brightness_state, user_cnt[0])
-        light2.train_model_from_memory(light2_memory, final_brightness_state, user_cnt[1])
-        roller.train_model_from_memory(roller_memory, final_brightness_state, user_cnt[2])
-        heater.train_model_from_memory(heater_memory, final_temperature_state, user_cnt[3])
+        light1.train_model_from_memory(light1.memory, final_brightness_state, user_cnt[0])
+        light2.train_model_from_memory(light2.memory, final_brightness_state, user_cnt[1])
+        roller.train_model_from_memory(roller.memory, final_brightness_state, user_cnt[2])
+        heater.train_model_from_memory(heater.memory, final_temperature_state, user_cnt[3])
 
         print(actions_cnt)
         f.write(','.join(list(map(lambda x: str(x), actions_cnt))))
@@ -202,5 +206,5 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
 
 
 if __name__ == '__main__':
-    for _ in range(5):
-        main(load_flag=False, pretrain_flag=False, pretrain_iteration=300, save_flag=False)
+    for _ in range(3):
+        main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=False, maximum_episode=100)
