@@ -3,5 +3,5 @@
         "./device", 
         "./RL"
     ],
-    "python.pythonPath": "C:\\Users\\skygu\\anaconda3\\envs\\64py37\\python.exe"
+    "python.pythonPath": "C:\\Users\\cdsnlab\\anaconda3\\envs\\openai_test\\python.exe"
 }

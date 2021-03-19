@@ -1,7 +1,7 @@
 *.pyc
-.vscode
-settings.json
 *.xlsx
 *.csv
 *.pptx
 *.txt
+settings.json
+workspace.code-workspace

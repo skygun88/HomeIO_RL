@@ -1,8 +1,9 @@
 import socket
 import json
-from RL.deep_agent import *
+from RL.table_agent import *
 import os
 from datetime import datetime
+import time
 
 HOST = '127.0.0.1'
 PORT = 55665
@@ -12,79 +13,35 @@ TEMPERATURE_N_STATE = 3
 N_ACTION = 3
 CURRENT_PATH = os.path.dirname(os.path.realpath(__file__))
 WEIGHT_PATH = CURRENT_PATH+'/weight/'
+N_LEVEL = 10
 
 
-def state_preprocessing(states):
+def state_preprocessing(states, n_level):
     brightness_env = list(filter(lambda x: 'Brightness' in x[0], states.items()))
     temperature_env = list(filter(lambda x: 'Temperature' in x[0], states.items()))
-    brightness_env_state = list(map(lambda x: min(max(x[1], 0), 10)/10, brightness_env)) # clip (0 ~ 10)/10
-    temperature_env_state = list(map(lambda x: (min(max(x[1], -10), 30)+10)/40, temperature_env)) # (clip (-10, 30)+10)/40
+    brightness_env_state = list(map(lambda x: min(int(min(max(x[1], 0), 10)/(10/n_level)), n_level-1), brightness_env)) # clip (0 ~ 10)/10
+    temperature_env_state = list(map(lambda x: min(int((min(max(x[1], -10), 30)+10)/(40/n_level)), n_level-1), temperature_env)) # (clip (-10, 30)+10)/40
 
-    brightness_agent_state = list(map(lambda x: (x[1])/10, states.items()))[:3]
-    temperature_agent_state = [states['RoomHeater']/10]
+    light_agent_state = list(map(lambda x: min(int(x[1]/(10/n_level)), n_level-1), states.items()))[:2]
+    roller_agent_state = [min(int(states['RoomRoller']/(10/2)), 1)]
+    temperature_agent_state = [min(int(states['RoomHeater']/(10/n_level)), n_level-1)]
 
-    brigthness_state = brightness_agent_state + brightness_env_state
+    brigthness_state = light_agent_state + roller_agent_state + brightness_env_state
     temperature_state = temperature_agent_state + temperature_env_state
     return brigthness_state, temperature_state
 
-def pretraining(light1, light2, roller, heater, client_socket, max_iteration):
-    ''' --- initialization --- '''
-    agents = [light1, light2, roller, heater]
-
-    for i in range(max_iteration):
-        print(f'Pretraining [{i+1}] ---------------')
-        ''' --- State data recived --- '''
-        data = client_socket.recv(1024)
-        states = json.loads(data.decode())
-
-        ''' --- Process recived data --- '''
-        names = list(states.keys())
-        agent_names = names[:4]
-        actions = [0]*len(agent_names)
-
-        ''' --- Ontology based state distirbution --- '''
-        brightness_state, temperature_state = state_preprocessing(states)
-        
-        print(f'brigthness_state: {brightness_state}')
-        print(f'temperature_state: {temperature_state}')
-
-        actions[0] = int(light1.get_action(brightness_state))
-        actions[1] = int(light2.get_action(brightness_state))
-        actions[2] = int(roller.get_action(brightness_state))
-        actions[3] = int(heater.get_action(temperature_state))
-
-        rewards = list(map(lambda x: 1 if x==0 else -1, actions))
-
-        action_dict = dict(map(lambda x, y: (x, y), agent_names, actions))
-        print(action_dict)
-        print(rewards)
-        print('------------------------')
-        action_dict_json = json.dumps(action_dict)
-        client_socket.sendall(action_dict_json.encode())
-
-        data = client_socket.recv(1024)
-        next_state = json.loads(data.decode())
-        next_brightness_state, next_temperature_state = state_preprocessing(next_state)
-
-        light1.train_model(brightness_state, actions[0], rewards[0], next_brightness_state, False)
-        light2.train_model(brightness_state, actions[1], rewards[1], next_brightness_state, False)
-        roller.train_model(brightness_state, actions[2], rewards[2], next_brightness_state, False)
-        heater.train_model(next_temperature_state, actions[3], rewards[3], next_temperature_state, False)
-
-    for agent in agents:
-        agent.save_model(WEIGHT_PATH)
 
 
-def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=True, maximum_episode=100):
+def main(load_flag=False, save_flag=True, maximum_episode=100):
     ''' --- Socket setup --- '''
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((HOST, PORT))
 
     ''' --- Agent setup --- '''
-    light1 = IoTAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomLight1')
-    light2 = IoTAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomLight2')
-    roller = IoTAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomRoller')
-    heater = IoTAgent(TEMPERATURE_N_STATE, N_ACTION, 'RoomHeater')
+    light1 = TabulatedIotAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomLight1')
+    light2 = TabulatedIotAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomLight2')
+    roller = TabulatedIotAgent(BRIGHTNESS_N_STATE, N_ACTION, 'RoomRoller')
+    heater = TabulatedIotAgent(TEMPERATURE_N_STATE, N_ACTION, 'RoomHeater')
 
     agents = [light1, light2, roller, heater]
 
@@ -95,9 +52,6 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
         roller.load_model(WEIGHT_PATH)
         heater.load_model(WEIGHT_PATH)
 
-    if pretrain_flag == True:
-        pretraining(light1, light2, roller, heater, client_socket, pretrain_iteration)
-        print('Pretraining is finished --------------------- ')
 
     current_time = str(datetime.now()).replace(':', '_').split('.')[0]
     f = open('agent_log_'+current_time+'.csv', 'w')
@@ -121,8 +75,11 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
             actions = [0]*len(agent_names)
 
             ''' --- Ontology based state distirbution --- '''
-            brightness_state, temperature_state = state_preprocessing(states)
+            brightness_state, temperature_state = state_preprocessing(states, N_LEVEL)
 
+            # print(f'states: {states}')
+            # print(f'brightness_state: {brightness_state}')
+            # print(f'temperature_state: {temperature_state}')
 
             ''' --- Select action and send action data --- '''
             actions[0] = int(light1.get_action(brightness_state))
@@ -139,7 +96,7 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
             ''' --- receive thwe next state --- '''
             data = client_socket.recv(1024)
             next_state = json.loads(data.decode())
-            next_brightness_state, next_temperature_state = state_preprocessing(next_state)
+            next_brightness_state, next_temperature_state = state_preprocessing(next_state, N_LEVEL)
 
             ''' --- Stack the replay memory --- '''
             
@@ -182,7 +139,7 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
         data = client_socket.recv(1024)
         user_cnt = json.loads(data.decode())['user_cnt']
 
-        final_brightness_state, final_temperature_state = state_preprocessing(final_state)
+        final_brightness_state, final_temperature_state = state_preprocessing(final_state, N_LEVEL)
 
         light1.train_model_from_memory(light1.memory, final_brightness_state, user_cnt[0])
         light2.train_model_from_memory(light2.memory, final_brightness_state, user_cnt[1])
@@ -207,4 +164,5 @@ def main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=
 
 if __name__ == '__main__':
     for _ in range(3):
-        main(load_flag=False, pretrain_flag=True, pretrain_iteration=300, save_flag=False, maximum_episode=100)
+        main(load_flag=False, save_flag=False, maximum_episode=200)
+        time.sleep(1)

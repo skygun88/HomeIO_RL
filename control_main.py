@@ -125,4 +125,4 @@ def main(sl_flag=False):
 
 if __name__ == '__main__':
     for _ in range(3):
-        main(sl_flag=True)
+        main(sl_flag=False)

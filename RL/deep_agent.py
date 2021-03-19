@@ -13,9 +13,9 @@ POSITIVE = 1
 NEGATIVE = -1
 
 '''
-class LightAgent:
+class IoTAgent:
     RL agent for learning Smart-home brightness adpatation
-    This agent learn athe task based on Actor-critic
+    This agent learns the task based on Actor-critic
 '''
 class IoTAgent:
     def __init__(self, n_state, n_action, name):
@@ -109,21 +109,12 @@ class IoTAgent:
             ''' Test - Reward calculation without outside state '''
             state_distance = sum(list(map(lambda x, y: (x-y)**2, states[i][:-1], final_state[:-1])))
             next_state_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i][:-1], final_state[:-1])))
-            cuur_next_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i][:-1], states[i][:-1])))
-            reward = POSITIVE if ((state_distance > next_state_distance and cuur_next_distance > 0.001) or next_state_distance <= 0.0001) else NEGATIVE
+            curr_next_distance = sum(list(map(lambda x, y: (x-y)**2, next_states[i][:-1], states[i][:-1])))
+            reward = POSITIVE if ((state_distance > next_state_distance and curr_next_distance > 0.001) or next_state_distance <= 0.0001) else NEGATIVE
             if i == len(memory)-1:
                 reward -= user_cnt
             rewards.append(reward)
-            
-            # if len(final_state) == 3:
-            #     print(f'States: {states[i]}, distance: {state_distance}')
-            #     print(f'Actions: {actions[i]}')
-            #     print(f'Next_states: {next_states[i]}, distance: {next_state_distance}')
-            #     print(f'final_state: {final_state}')
-            #     print(f'user_cnt: {user_cnt}')
-            #     print(f'reward: {reward}')
-            #     print(f'---------------------------------------')
-            
+      
 
         print(f'avg reward = {sum(rewards)/len(rewards)}')
         rewards = np.array(rewards)
@@ -160,6 +151,6 @@ class IoTAgent:
             self.critic_optimizer.step()
         self.actor.eval(), self.critic.eval()
 
-        self.change_lr(self.learning_rate) # Return original lr
+        self.change_lr(self.learning_rate) # Restore original lr
         # print(loss)
         return
